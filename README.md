@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 # Text-To-3D-Modeling
 =======
 # AI-Prompted 3D Modeling
