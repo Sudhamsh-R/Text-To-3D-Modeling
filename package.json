@@ -1,0 +1,25 @@
+{
+  "name": "ai-prompted-3d-modeling",
+  "version": "1.0.0",
+  "description": "Text-prompted 3D modeling — text to image to GLB via API orchestration and Three.js",
+  "main": "server/index.js",
+  "scripts": {
+    "start": "node server/index.js",
+    "dev": "node --watch server/index.js"
+  },
+  "keywords": [
+    "3d-modeling",
+    "text-to-3d",
+    "threejs",
+    "meshy",
+    "ai"
+  ],
+  "license": "MIT",
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2"
+  }
+}
