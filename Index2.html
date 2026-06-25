@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Convert Text to 3D Model</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div id="inputForm">
+        <h2>Enter Text Prompt for 3D Model:</h2>
+        <input type="text" id="textInput" placeholder="Enter your text prompt">
+        <br>
+        <button id="submitBtn">Generate 3D Model</button>
+    </div>
+    <div id="loadingMsg">
+        <p>Loading...</p>
+    </div>
+    <h1 id="userInputHeader"></h1>
+    <div id="outputContainer">
+        <div id="imageContainer">
+            <img id="generatedImage" src="placeholder.jpg" alt="Generated Image">
+        </div>
+        <div id="modelContainer" class="model">
+        </div>
+    </div>
+    <h2>Glimpse of Some of the Inputs</h2>
+    <div class="container">
+        <div class="box">
+          <span class="title">Heart</span>
+          <div>
+            <br><br>
+            <img src="Heart.jpg" alt="Card 1">
+          </div>
+        </div>
+        <div class="box">
+          <span class="title">Eagle</span>
+          <div>
+            <br><br>
+            <img src="Eagle.jpg" alt="Card 2">
+          </div>
+        </div>
+        <div class="box">
+          <span class="title">A Man Standing On One Leg</span>
+          <div>
+            <br><br>
+            <img src="AManStandingOnOneLeg.png" alt="Card 3">
+          </div>
+        </div>
+        <div class="box">
+          <span class="title">A Man Riding On A Horse</span>
+          <div>
+            <br><br>
+            <img src="AManRidingOnAHorse.png" alt="Card 4">
+          </div>
+        </div>
+      </div>          
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <script>
+        document.getElementById('submitBtn').addEventListener('click', async () => {
+            const textInput = document.getElementById('textInput').value;
+            if (!textInput.trim()) {
+                alert('Please enter a text prompt.');
+                return;
+            }
+            document.getElementById('loadingMsg').style.display = 'block';
+            document.getElementById('inputForm').style.display = 'none';
+            await convertTextToImage(textInput);
+        });
+
+        async function convertTextToImage(textPrompt) {
+            const imageUrl = await fetchImage(textPrompt);
+            if (imageUrl) {
+                displayImage(imageUrl);
+                await convertImageTo3D(imageUrl);
+            } else {
+                console.error('Failed to fetch image URL.');
+            }
+        }
+
+        async function fetchImage(textPrompt) {
+            const url = 'https://ai-text-to-image-generator-api.p.rapidapi.com/3D';
+            const options = {
+                method: 'POST',
+                headers: {
+                    'x-rapidapi-key': 'bf80e374b3msh01206996f889e99p16fc73jsnbddea8ed608d', // Replace with your actual Rapid API key
+                    'x-rapidapi-host': 'ai-text-to-image-generator-api.p.rapidapi.com',
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    inputs: textPrompt
+                })
+            };
+
+            try {
+                const response = await fetch(url, options);
+                const data = await response.json();
+                return data.url;
+            } catch (error) {
+                console.error('Error fetching image:', error);
+                return null;
+            }
+        }
+
+        function displayImage(imageUrl) {
+            const generatedImage = document.getElementById('generatedImage');
+            generatedImage.src = imageUrl;
+            document.getElementById('outputContainer').style.display = 'flex';
+            document.getElementById('userInputHeader').textContent = document.getElementById('textInput').value;
+
+            // Hide all other content
+            const elementsToHide = document.querySelectorAll('#inputForm, .container');
+            elementsToHide.forEach(element => {
+                element.classList.add('hidden');
+            });
+        }
+
+        async function convertImageTo3D(imageUrl) {
+            const apiKey = 'msy_cWemQMBxs2bydAudcPcmj6b6EAAOfc3CsHIv'; // Replace with your actual MESH API key
+            const apiUrl = 'https://api.meshy.ai/v1/image-to-3d';
+
+            const createTaskResponse = await fetch(apiUrl, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${apiKey}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ image_url: imageUrl, enable_pbr: true })
+            });
+
+            if (!createTaskResponse.ok) {
+                console.error('Error creating task:', createTaskResponse.statusText);
+                return;
+            }
+
+            const taskData = await createTaskResponse.json();
+            const taskId = taskData.result;
+
+            let taskStatus = 'PENDING';
+            let modelUrls = null;
+
+            while (taskStatus !== 'SUCCEEDED') {
+                const taskStatusResponse = await fetch(`${apiUrl}/${taskId}`, {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': `Bearer ${apiKey}`
+                    }
+                });
+                if (!taskStatusResponse.ok) {
+                    console.error('Error fetching task status:', taskStatusResponse.statusText);
+                    return;
+                }
+
+                const taskStatusData = await taskStatusResponse.json();
+                taskStatus = taskStatusData.status;
+
+                if (taskStatus === 'SUCCEEDED') {
+                    modelUrls = taskStatusData.model_urls;
+                    break;
+                } else if (taskStatus === 'FAILED') {
+                    console.error('Task failed:', taskStatusData.task_error.message);
+                    return;
+                }
+
+                await new Promise(resolve => setTimeout(resolve, 5000));
+            }
+
+            if (modelUrls) {
+                const modelUrl = modelUrls.glb;
+                loadAndDisplayModel(modelUrl);
+            }
+        }
+
+        async function loadAndDisplayModel(modelUrl) {
+            const scene = new THREE.Scene();
+            const camera = new THREE.PerspectiveCamera(75, 1, 0.1, 1000);
+            const renderer = new THREE.WebGLRenderer();
+            const modelContainer = document.getElementById('modelContainer');
+            const containerWidth = modelContainer.clientWidth;
+            const containerHeight = modelContainer.clientHeight;
+
+            renderer.setSize(containerWidth, containerHeight);
+            modelContainer.appendChild(renderer.domElement);
+
+            const light = new THREE.DirectionalLight(0xffffff, 5);
+            light.position.set(5, 5, 5).normalize();
+            scene.add(light);
+
+            const ambientLight = new THREE.AmbientLight(0x404040, 2);
+            scene.add(ambientLight);
+
+            const loader = new THREE.GLTFLoader();
+            const controls = new THREE.OrbitControls(camera, renderer.domElement);
+
+            loader.load(modelUrl, function (gltf) {
+                scene.add(gltf.scene);
+                animate();
+            }, undefined, function (error) {
+                console.error(error);
+            });
+
+            camera.position.z = 5;
+
+            function animate() {
+                requestAnimationFrame(animate);
+                renderer.render(scene, camera);
+                controls.update();
+            }
+            document.getElementById('loadingMsg').style.display = 'none';
+        }
+    </script>
+</body>
+</html>

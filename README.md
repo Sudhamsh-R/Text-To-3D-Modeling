@@ -1,3 +1,6 @@
+<<<<<<< HEAD
+# Text-To-3D-Modeling
+=======
 # AI-Prompted 3D Modeling
 
 Turn natural-language descriptions into interactive 3D models using a two-stage AI pipeline and real-time WebGL rendering.
@@ -105,3 +108,4 @@ npm run dev
 ## License
 
 MIT — see [LICENSE](LICENSE).
+>>>>>>> Update250626
